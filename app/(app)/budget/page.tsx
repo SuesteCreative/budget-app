@@ -36,6 +36,8 @@ export default function BudgetPage() {
       if (res.success) {
         alert("Excel data synchronised!");
         fetchBudget();
+      } else {
+        alert("Sync failed: " + res.error);
       }
     } catch (e) {
       console.error(e);
