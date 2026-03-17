@@ -1,48 +1,80 @@
 
 "use client";
 
-import { useState } from "react";
-import { Plus, Search, Filter } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Search, Filter, Loader2, CheckCircle2, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getBudgetData, addTransaction } from "@/app/actions/budget";
 
 const months = [
-  "January", "February", "March", "April", "May", "June", 
-  "July", "August", "September", "October", "November", "December"
+  { name: "January", key: "2025-01" },
+  { name: "February", key: "2025-02" },
+  { name: "March", key: "2025-03" },
+  { name: "April", key: "2025-04" },
+  { name: "May", key: "2025-05" },
+  { name: "June", key: "2025-06" },
+  { name: "July", key: "2025-07" },
+  { name: "August", key: "2025-08" },
+  { name: "September", key: "2025-09" },
+  { name: "October", key: "2025-10" },
+  { name: "November", key: "2025-11" },
+  { name: "December", key: "2025-12" }
 ];
 
-// Mock data based on Excel structure
-const initialBudgetData = {
-  income: [
-    { category: "Employment Income", estimate: 1236.25, actual: 1236.25 },
-    { category: "Investments", estimate: 0, actual: 45.20 },
-    { category: "Freelance", estimate: 400.0, actual: 350.0 },
-    { category: "Part-time", estimate: 586.25, actual: 586.25 },
-  ],
-  expenses: [
-    { category: "Rent/Mortgage", estimate: 650.0, actual: 650.0, date: "2025-01-01" },
-    { category: "Groceries", estimate: 300.0, actual: 324.50, date: "2025-01-05" },
-    { category: "Electricity", estimate: 60.0, actual: 0, date: "" },
-    { category: "Water", estimate: 25.0, actual: 28.10, date: "2025-01-10" },
-    { category: "NOS (Internet/TV)", estimate: 45.0, actual: 44.90, date: "2025-01-12", receipt: true },
-    { category: "Gym", estimate: 35.0, actual: 35.0, date: "2025-01-02" },
-  ]
-};
-
 export default function BudgetPage() {
-  const [selectedMonth, setSelectedMonth] = useState("January");
+  const [selectedMonth, setSelectedMonth] = useState(months[0]);
+  const [data, setData] = useState<{income: any[], expenses: any[]}>({ income: [], expenses: [] });
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("Expenses");
 
-  const totalEstimateIncome = initialBudgetData.income.reduce((acc, curr) => acc + curr.estimate, 0);
-  const totalActualIncome = initialBudgetData.income.reduce((acc, curr) => acc + curr.actual, 0);
+  const fetchBudget = async () => {
+    setLoading(true);
+    try {
+      const res = await getBudgetData(selectedMonth.key);
+      setData(res);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBudget();
+  }, [selectedMonth]);
+
+  const handleLogPayment = async (category: any) => {
+    const amountStr = prompt(`Logging payment for ${category.name}. Amount:`, category.estimated.toString());
+    if (!amountStr) return;
+    
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount)) return;
+
+    try {
+      await addTransaction({
+        category_id: category.id,
+        amount: amount,
+        description: `Payment: ${category.name}`,
+        date: new Date().toISOString().split('T')[0]
+      });
+      fetchBudget(); // Refresh
+    } catch (e) {
+      alert("Error logging payment");
+    }
+  };
+
+  const totalEstimateIncome = data.income.reduce((acc, curr) => acc + curr.estimated, 0);
+  const totalActualIncome = data.income.reduce((acc, curr) => acc + curr.actual, 0);
   
-  const totalEstimateExpense = initialBudgetData.expenses.reduce((acc, curr) => acc + curr.estimate, 0);
-  const totalActualExpense = initialBudgetData.expenses.reduce((acc, curr) => acc + curr.actual, 0);
+  const totalEstimateExpense = data.expenses.reduce((acc, curr) => acc + curr.estimated, 0);
+  const totalActualExpense = data.expenses.reduce((acc, curr) => acc + curr.actual, 0);
 
   return (
     <div className="flex flex-col gap-8">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Budget 2026</h1>
-          <p className="text-muted-foreground text-sm">Managing your monthly cash flow.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Financial Budget</h1>
+          <p className="text-muted-foreground text-sm">Managing your cash flow for {selectedMonth.name}.</p>
         </div>
         
         <div className="flex items-center gap-2">
@@ -50,9 +82,10 @@ export default function BudgetPage() {
              {["Income", "Expenses", "Overview"].map((tab) => (
                 <button 
                   key={tab}
+                  onClick={() => setActiveTab(tab)}
                   className={cn(
                     "px-4 py-1.5 text-xs font-medium rounded-sharp transition-all",
-                    tab === "Expenses" ? "bg-background shadow-sm border border-border" : "text-muted-foreground hover:text-foreground"
+                    tab === activeTab ? "bg-background shadow-sm border border-border" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {tab}
@@ -61,121 +94,150 @@ export default function BudgetPage() {
            </div>
            <button className="bg-accent text-white px-4 py-2 text-xs font-semibold rounded-sharp border border-accent hover:opacity-90 transition-opacity flex items-center gap-2">
              <Plus className="w-4 h-4" />
-             Add Entry
+             Add Category
            </button>
         </div>
       </header>
 
       <div className="flex gap-2 border-b border-border pb-px overflow-x-auto no-scrollbar">
-        {months.map((month) => (
+        {months.map((m) => (
           <button
-            key={month}
-            onClick={() => setSelectedMonth(month)}
+            key={m.key}
+            onClick={() => setSelectedMonth(m)}
             className={cn(
               "px-4 py-3 text-xs font-medium border-b-2 transition-all whitespace-nowrap",
-              selectedMonth === month 
+              selectedMonth.key === m.key 
                 ? "border-accent text-foreground" 
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            {month}
+            {m.name}
           </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card-normal p-6 flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Income</span>
-          <span className="text-2xl font-semibold tracking-tight">€{totalActualIncome.toFixed(2)}</span>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] text-muted-foreground">Estimate: €{totalEstimateIncome.toFixed(2)}</span>
-            <span className={cn(
-              "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
-              totalActualIncome >= totalEstimateIncome ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
-            )}>
-              {totalActualIncome >= totalEstimateIncome ? "+" : "-"}{Math.abs(((totalActualIncome/totalEstimateIncome - 1) * 100)).toFixed(1)}%
-            </span>
-          </div>
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted-foreground">
+          <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          <p className="text-xs font-medium uppercase tracking-widest">Loading real-time data...</p>
         </div>
-        <div className="card-normal p-6 flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Expenses</span>
-          <span className="text-2xl font-semibold tracking-tight">€{totalActualExpense.toFixed(2)}</span>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] text-muted-foreground">Estimate: €{totalEstimateExpense.toFixed(2)}</span>
-            <span className={cn(
-              "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
-              totalActualExpense <= totalEstimateExpense ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
-            )}>
-              {totalActualExpense <= totalEstimateExpense ? "-" : "+"}{Math.abs(((totalActualExpense/totalEstimateExpense - 1) * 100)).toFixed(1)}%
-            </span>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="card-normal p-6 flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Income</span>
+              <span className="text-2xl font-semibold tracking-tight">€{totalActualIncome.toFixed(2)}</span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[10px] text-muted-foreground">Estimate: €{totalEstimateIncome.toFixed(2)}</span>
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
+                  totalActualIncome >= totalEstimateIncome ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
+                )}>
+                  {totalActualIncome >= totalEstimateIncome ? <TrendingUp className="w-3 h-3 inline mr-1" /> : <TrendingDown className="w-3 h-3 inline mr-1" />}
+                  {totalEstimateIncome > 0 ? Math.abs(((totalActualIncome/totalEstimateIncome - 1) * 100)).toFixed(1) : "0"}%
+                </span>
+              </div>
+            </div>
+            <div className="card-normal p-6 flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Expenses</span>
+              <span className="text-2xl font-semibold tracking-tight">€{totalActualExpense.toFixed(2)}</span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[10px] text-muted-foreground">Estimate: €{totalEstimateExpense.toFixed(2)}</span>
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
+                  totalActualExpense <= totalEstimateExpense ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
+                )}>
+                  {totalActualExpense <= totalEstimateExpense ? <TrendingDown className="w-3 h-3 inline mr-1" /> : <TrendingUp className="w-3 h-3 inline mr-1" />}
+                  {totalEstimateExpense > 0 ? Math.abs(((totalActualExpense/totalEstimateExpense - 1) * 100)).toFixed(1) : "0"}%
+                </span>
+              </div>
+            </div>
+            <div className="card-normal p-6 flex flex-col gap-1">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Net Cash Flow</span>
+              <span className="text-2xl font-semibold tracking-tight text-accent">€{(totalActualIncome - totalActualExpense).toFixed(2)}</span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[10px] text-muted-foreground">Estimated Balance: €{(totalEstimateIncome - totalEstimateExpense).toFixed(2)}</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="card-normal p-6 flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Balance</span>
-          <span className="text-2xl font-semibold tracking-tight">€{(totalActualIncome - totalActualExpense).toFixed(2)}</span>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-[10px] text-muted-foreground text-accent">Under budget</span>
-          </div>
-        </div>
-      </div>
 
-      <div className="card-normal">
-        <div className="border-b border-border p-4 flex items-center justify-between">
-           <h3 className="text-sm font-semibold">Expense Tracking</h3>
-           <div className="relative">
-             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-             <input 
-              type="text" 
-              placeholder="Search expenses..." 
-              className="bg-muted/50 border border-border text-xs rounded-sharp pl-9 pr-4 py-2 w-64 focus:outline-none focus:ring-1 focus:ring-accent/50"
-             />
-           </div>
-        </div>
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-border bg-muted/30">
-              <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-wider">Category</th>
-              <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-              <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-wider">Estimated</th>
-              <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-wider">Actual</th>
-              <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-wider">Diff</th>
-              <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {initialBudgetData.expenses.map((expense) => {
-              const diff = expense.estimate - expense.actual;
-              return (
-                <tr key={expense.category} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 font-medium flex items-center gap-2">
-                    {expense.category}
-                    {expense.receipt && (
-                      <span className="bg-accent/10 text-accent text-[8px] font-bold px-1.5 py-0.5 rounded-sharp">NOS</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-muted-foreground">{expense.date || "—"}</td>
-                  <td className="px-6 py-4">€{expense.estimate.toFixed(2)}</td>
-                  <td className="px-6 py-4">€{expense.actual.toFixed(2)}</td>
-                  <td className={cn(
-                    "px-6 py-4 font-medium",
-                    diff < 0 ? "text-red-500" : "text-accent"
-                  )}>
-                    {diff > 0 ? "+" : ""}{diff.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn(
-                      "px-2 py-1 rounded-sharp text-[10px] font-bold inline-block",
-                      expense.actual > 0 ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
-                    )}>
-                      {expense.actual > 0 ? "Paid" : "Pending"}
-                    </span>
-                  </td>
+          <div className="card-normal">
+            <div className="border-b border-border p-4 flex items-center justify-between bg-muted/10">
+               <h3 className="text-sm font-semibold">{activeTab} Tracking</h3>
+               <div className="relative">
+                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                 <input 
+                  type="text" 
+                  placeholder={`Search ${activeTab.toLowerCase()}...`}
+                  className="bg-background border border-border text-xs rounded-sharp pl-9 pr-4 py-2 w-64 focus:outline-none focus:ring-1 focus:ring-accent/50"
+                 />
+               </div>
+            </div>
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-border bg-muted/20">
+                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Category</th>
+                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Estimated</th>
+                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Actual</th>
+                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Diff</th>
+                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Status</th>
+                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px] text-right">Action</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {(activeTab === "Income" ? data.income : data.expenses).map((item) => {
+                  const diff = item.estimated - item.actual;
+                  const isPaid = item.actual > 0;
+                  
+                  return (
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-6 py-4 font-medium flex items-center gap-2">
+                        {item.name}
+                        {item.name === "NOS" && <span className="bg-accent/10 text-accent text-[8px] font-bold px-1.5 py-0.5 rounded-sharp uppercase">Carrier</span>}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">€{item.estimated.toFixed(2)}</td>
+                      <td className="px-6 py-4 font-semibold">€{item.actual.toFixed(2)}</td>
+                      <td className={cn(
+                        "px-6 py-4 font-medium",
+                        item.type === 'income' 
+                          ? (item.actual >= item.estimated ? "text-accent" : "text-red-500")
+                          : (item.actual <= item.estimated ? "text-accent" : "text-red-500")
+                      )}>
+                        {item.type === 'income' 
+                          ? (item.actual - item.estimated).toFixed(2)
+                          : (item.estimated - item.actual).toFixed(2)
+                        }
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded-sharp text-[10px] font-bold inline-flex items-center gap-1.5",
+                          isPaid ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
+                        )}>
+                          {isPaid ? <CheckCircle2 className="w-3 h-3" /> : null}
+                          {isPaid ? "Paid" : "Pending"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => handleLogPayment(item)}
+                          className="text-[10px] font-bold uppercase text-accent hover:underline"
+                        >
+                          Log Entry
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {(activeTab === "Income" ? data.income : data.expenses).length === 0 && (
+              <div className="py-12 text-center text-muted-foreground text-xs">
+                No data for this month. Try syncing from Excel or adding a category.
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
