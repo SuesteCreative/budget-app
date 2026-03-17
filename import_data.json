@@ -1,0 +1,156 @@
+{
+  "2025-01": {
+    "income": [
+      {
+        "name": "Employment Income",
+        "estimated": 0.0,
+        "actual": 1236.25
+      },
+      {
+        "name": "Investments",
+        "estimated": 0.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Freelance",
+        "estimated": 400.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Part-time",
+        "estimated": 0.0,
+        "actual": 0.0
+      }
+    ],
+    "expenses": [
+      {
+        "name": "Renda",
+        "date": "2025-01-01",
+        "estimated": 400.0,
+        "actual": 0.0
+      },
+      {
+        "name": "\u00c1gua",
+        "date": "2025-01-03",
+        "estimated": 0.0,
+        "actual": 19.22
+      },
+      {
+        "name": "Repsol",
+        "date": "2025-01-22",
+        "estimated": 0.0,
+        "actual": 83.79
+      },
+      {
+        "name": "Carro",
+        "date": "2025-01-01",
+        "estimated": 100.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Gasolina",
+        "date": "2025-01-01",
+        "estimated": 50.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Compras",
+        "date": "2025-01-01",
+        "estimated": 100.0,
+        "actual": 0.0
+      },
+      {
+        "name": "NOS",
+        "date": "2025-02-04",
+        "estimated": 79.05,
+        "actual": 0.0
+      },
+      {
+        "name": "Gin\u00e1sio",
+        "date": "2025-01-01",
+        "estimated": 0.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Galp",
+        "date": "2025-01-01",
+        "estimated": 0.0,
+        "actual": 18.93
+      }
+    ]
+  },
+  "2025-02": {
+    "income": [
+      {
+        "name": "Employment Income",
+        "estimated": 0.0,
+        "actual": 1223.25
+      },
+      {
+        "name": "Investments",
+        "estimated": 0.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Side Hustles",
+        "estimated": 300.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Part-time",
+        "estimated": 0.0,
+        "actual": 0.0
+      }
+    ],
+    "expenses": [
+      {
+        "name": "Renda",
+        "date": "2025-01-01",
+        "estimated": 400.0,
+        "actual": 0.0
+      },
+      {
+        "name": "\u00c1gua",
+        "date": "2025-01-01",
+        "estimated": 0.0,
+        "actual": 0.0
+      },
+      {
+        "name": "G\u00e1s + Luz ",
+        "date": "2025-01-01",
+        "estimated": 0.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Carro",
+        "date": "2025-01-01",
+        "estimated": 100.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Gasolina",
+        "date": "2025-01-01",
+        "estimated": 0.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Compras",
+        "date": "2025-01-01",
+        "estimated": 100.0,
+        "actual": 0.0
+      },
+      {
+        "name": "Internet",
+        "date": "2025-01-01",
+        "estimated": 74.48,
+        "actual": 0.0
+      },
+      {
+        "name": "Gin\u00e1sio",
+        "date": "2025-01-01",
+        "estimated": 0.0,
+        "actual": 0.0
+      }
+    ]
+  }
+}

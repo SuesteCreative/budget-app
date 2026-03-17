@@ -1,15 +1,41 @@
 
 "use client";
 
-import { AlertCircle, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
+import { AlertCircle, ArrowUpRight, ArrowDownRight, Activity, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { importExcelData } from "@/app/actions/import-excel";
+import { useState } from "react";
 
 export default function Dashboard() {
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await importExcelData();
+      if (res.success) alert("Excel data imported successfully!");
+    } catch (e) {
+      console.error(e);
+      alert("Error importing data. Make sure you are logged in.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
   return (
     <div className="flex flex-col gap-10">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome, Pedro.</h1>
-        <p className="text-muted-foreground">Here is your financial status for March 2026.</p>
+      <header className="flex items-center justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold tracking-tight">Welcome, Pedro.</h1>
+          <p className="text-muted-foreground">Here is your financial status for March 2026.</p>
+        </div>
+        <button 
+          onClick={handleSync}
+          disabled={isSyncing}
+          className="bg-muted text-foreground border border-border px-4 py-2 text-xs font-semibold rounded-sharp inline-flex items-center gap-2 hover:bg-muted/80 transition-colors disabled:opacity-50"
+        >
+          <Database className="w-4 h-4" />
+          {isSyncing ? "Syncing..." : "Sync from Excel"}
+        </button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
