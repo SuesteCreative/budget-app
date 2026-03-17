@@ -1,6 +1,6 @@
 
 import { Sidebar } from "@/components/Sidebar";
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 const ALLOWED_EMAIL = "pedrotovarporto@gmail.com";
@@ -10,22 +10,18 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  let user = null;
-  try {
-    user = await currentUser();
-  } catch (e) {
-    console.error("Layout Clerk Error:", e);
-    // If Clerk crashes, we should still try to render or redirect safely
-  }
+  // Use auth() first as it is faster and more reliable for simple protection
+  const { userId } = await auth();
   
-  if (!user) {
+  if (!userId) {
     redirect("/sign-in");
   }
 
-  const hasAccess = user.emailAddresses.some(e => e.emailAddress === ALLOWED_EMAIL);
+  // Double check email for security
+  const user = await currentUser();
+  const hasAccess = user?.emailAddresses?.some(e => e.emailAddress === ALLOWED_EMAIL);
   
   if (!hasAccess) {
-    // If you want to show a 403 instead of redirecting, you can return a div here
     redirect("/sign-in");
   }
 
