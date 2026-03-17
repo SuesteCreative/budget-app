@@ -149,6 +149,28 @@ export default function BudgetPage() {
         </div>
       ) : (
         <>
+          {(data.income.length === 0 && data.expenses.length === 0) && (
+            <div className="card-normal p-8 bg-accent/5 border-accent/20 flex flex-col items-center gap-4 text-center">
+              <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center text-accent">
+                <Database className="w-6 h-6" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <h3 className="text-sm font-bold uppercase tracking-widest">No Budget Data Found</h3>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  We found your Excel data in the core, but it hasn't been synced to your account yet.
+                </p>
+              </div>
+              <button 
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="bg-accent text-white px-8 py-3 text-xs font-bold rounded-sharp hover:opacity-90 transition-all flex items-center gap-2"
+              >
+                {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                {isSyncing ? "SYNCING..." : "SYNC EXCEL DATA NOW"}
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card-normal p-6 flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Income</span>
