@@ -58,7 +58,6 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-border flex items-center gap-3">
         <UserButton 
-          afterSignOutUrl="/" 
           appearance={{
             elements: {
               avatarBox: "w-8 h-8 rounded-sm",
