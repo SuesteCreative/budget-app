@@ -1,8 +1,7 @@
-
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 
 export async function getBudgetData(month: string) {
   const { userId } = await auth();

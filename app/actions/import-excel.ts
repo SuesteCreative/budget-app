@@ -2,15 +2,13 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { getAdminClient } from "@/lib/supabase-admin";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import data from "../../import_data.json";
 
 export async function importExcelData() {
   try {
     const { userId } = await auth();
     if (!userId) return { success: false, error: "CLERK_AUTH_FAILED: No user ID found." };
-
-    const supabase = await getAdminClient();
 
     // 1. Ensure profile exists
     const { error: profileError } = await supabase
@@ -21,9 +19,9 @@ export async function importExcelData() {
       return { success: false, error: "SUPABASE_PROFILE_ERROR: " + profileError.message };
     }
 
-    // 2. Clear old data for these months to avoid duplicates (CLEAN SYNC)
-    // We only clear for Jan/Feb 2025
+    // 3. Clear old data to prevent duplication during a re-sync
     const monthsToSync = Object.keys(data);
+    await supabase.from('budget_categories').delete().eq('user_id', userId).in('month', monthsToSync);
     
     // Process categories and transactions
     for (const [month, content] of Object.entries(data)) {
