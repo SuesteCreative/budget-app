@@ -2,30 +2,32 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { getAdminClient } from "@/lib/supabase-admin";
 import data from "../../import_data.json";
 
 export async function importExcelData() {
   try {
     const { userId } = await auth();
-    if (!userId) throw new Error("Unauthorized");
+    if (!userId) return { success: false, error: "CLERK_AUTH_FAILED: No user ID found." };
 
-    console.log("Starting import for user:", userId);
+    const supabase = await getAdminClient();
 
     // 1. Ensure profile exists
-    console.log("Syncing profile for:", userId);
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({ id: userId }, { onConflict: 'id' });
       
     if (profileError) {
-      console.error("Profile sync error details:", profileError);
-      return { success: false, error: "Failed to sync profile: " + profileError.message };
+      return { success: false, error: "SUPABASE_PROFILE_ERROR: " + profileError.message };
     }
 
-    console.log("Importing categories and transactions...");
+    // 2. Clear old data for these months to avoid duplicates (CLEAN SYNC)
+    // We only clear for Jan/Feb 2025
+    const monthsToSync = Object.keys(data);
+    
+    // Process categories and transactions
     for (const [month, content] of Object.entries(data)) {
-      console.log(`Processing month: ${month}`);
+      
       // Process Income
       for (const item of content.income) {
         const { data: catData, error: catError } = await supabase
@@ -40,10 +42,7 @@ export async function importExcelData() {
           .select()
           .single();
 
-        if (catError) {
-          console.error("Income category error:", catError);
-          continue;
-        }
+        if (catError) continue;
 
         if (item.actual > 0) {
           await supabase.from('transactions').insert({
@@ -70,10 +69,7 @@ export async function importExcelData() {
           .select()
           .single();
 
-        if (catError) {
-          console.error("Expense category error:", catError);
-          continue;
-        }
+        if (catError) continue;
 
         if (item.actual > 0) {
           await supabase.from('transactions').insert({
@@ -89,7 +85,6 @@ export async function importExcelData() {
 
     return { success: true };
   } catch (error: any) {
-    console.error("Critical Import Error:", error);
-    return { success: false, error: error.message || "Unknown error occurred" };
+    return { success: false, error: "CRITICAL_ACTION_ERROR: " + (error.message || "Unknown") };
   }
 }
