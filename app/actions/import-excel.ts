@@ -35,7 +35,7 @@ export async function importExcelData() {
           .select()
           .single();
 
-        if (catErr) continue;
+        if (catError) continue;
 
         if (item.actual > 0) {
           await supabase.from('transactions').insert({
