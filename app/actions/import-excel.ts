@@ -12,16 +12,19 @@ export async function importExcelData() {
   console.log("Starting import for user:", userId);
 
   // 1. Ensure profile exists
+  console.log("Syncing profile for:", userId);
   const { error: profileError } = await supabase
     .from('profiles')
     .upsert({ id: userId }, { onConflict: 'id' });
     
   if (profileError) {
-    console.error("Profile sync error:", profileError);
-    return { success: false, error: "Failed to sync profile" };
+    console.error("Profile sync error details:", profileError);
+    return { success: false, error: "Failed to sync profile: " + profileError.message };
   }
 
+  console.log("Importing categories and transactions...");
   for (const [month, content] of Object.entries(data)) {
+    console.log(`Processing month: ${month}`);
     // Process Income
     for (const item of content.income) {
       const { data: catData, error: catError } = await supabase

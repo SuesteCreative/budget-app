@@ -2,9 +2,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Filter, Loader2, CheckCircle2, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Search, Filter, Loader2, CheckCircle2, TrendingUp, TrendingDown, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getBudgetData, addTransaction } from "@/app/actions/budget";
+import { importExcelData } from "@/app/actions/import-excel";
 
 const months = [
   { name: "January", key: "2025-01" },
@@ -26,6 +27,23 @@ export default function BudgetPage() {
   const [data, setData] = useState<{income: any[], expenses: any[]}>({ income: [], expenses: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Expenses");
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await importExcelData();
+      if (res.success) {
+        alert("Excel data synchronised!");
+        fetchBudget();
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Sync failed. Check console.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const fetchBudget = async () => {
     setLoading(true);
@@ -92,6 +110,14 @@ export default function BudgetPage() {
                 </button>
              ))}
            </div>
+           <button 
+             onClick={handleSync}
+             disabled={isSyncing}
+             className="bg-muted text-foreground border border-border px-4 py-2 text-xs font-semibold rounded-sharp inline-flex items-center gap-2 hover:bg-muted/80 transition-colors disabled:opacity-50"
+           >
+             <Database className="w-4 h-4" />
+             {isSyncing ? "Syncing..." : "Sync from Excel"}
+           </button>
            <button className="bg-accent text-white px-4 py-2 text-xs font-semibold rounded-sharp border border-accent hover:opacity-90 transition-opacity flex items-center gap-2">
              <Plus className="w-4 h-4" />
              Add Category
