@@ -24,7 +24,7 @@ const months = [
 
 export default function BudgetPage() {
   const [selectedMonth, setSelectedMonth] = useState(months[0]);
-  const [data, setData] = useState<{income: any[], expenses: any[]}>({ income: [], expenses: [] });
+  const [data, setData] = useState<{income: any[], expenses: any[], debugUserId?: string}>({ income: [], expenses: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("Expenses");
   const [isSyncing, setIsSyncing] = useState(false);
@@ -292,6 +292,10 @@ export default function BudgetPage() {
           </div>
         </>
       )}
+      
+      <div className="mt-auto pt-12 text-[8px] text-muted-foreground/50 font-mono text-center">
+        Account Link: {data?.debugUserId || "Not Linked"}
+      </div>
     </div>
   );
 }

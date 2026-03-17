@@ -39,7 +39,7 @@ export async function getBudgetData(month: string) {
         transactions: c.transactions || []
       }));
 
-    return { income, expenses };
+    return { income, expenses, debugUserId: userId };
   } catch (error: any) {
     console.error("Critical Budget Action Error:", error);
     return { income: [], expenses: [], error: error.message };
