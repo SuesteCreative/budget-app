@@ -3,17 +3,11 @@ require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.CLERK_SECRET_KEY; // Wait, I should use the service role key or anon key?
-// I have SUPABASE_SERVICE_ROLE_KEY? Let me check .env.local again.
+const serviceKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp5cmZmenltZXdwaWdqY3Ruc2NvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzc2MDAyMywiZXhwIjoyMDg5MzM2MDIzfQ.9_7HpMV4K7l7n3qSv1OPuCz3HgThkcUorbo-nI10HH8";
 
-async function checkUsers() {
-    const supabase = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-    const { data, error } = await supabase.from('profiles').select('*');
-    if (error) {
-        console.error('Error fetching profiles:', error);
-        return;
-    }
-    console.log('Profiles found:', data);
+async function checkProfiles() {
+    const supabase = createClient(supabaseUrl, serviceKey);
+    const { data: profiles } = await supabase.from('profiles').select('*');
+    console.log('ALL PROFILES:', profiles);
 }
-
-checkUsers();
+checkProfiles();

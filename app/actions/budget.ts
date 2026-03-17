@@ -4,41 +4,46 @@ import { auth } from "@clerk/nextjs/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 
 export async function getBudgetData(month: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+    
+    // Fetch categories for the specific month
+    const { data: categories, error: catError } = await supabase
+      .from('budget_categories')
+      .select('*, transactions(*)')
+      .eq('user_id', userId)
+      .eq('month', month);
 
-  // Fetch categories for the specific month
-  const { data: categories, error: catError } = await supabase
-    .from('budget_categories')
-    .select('*, transactions(*)')
-    .eq('user_id', userId)
-    .eq('month', month);
+    if (catError) {
+      console.error("Fetch budget error:", catError);
+      return { income: [], expenses: [], error: catError.message };
+    }
 
-  if (catError) {
-    console.error("Fetch budget error:", catError);
-    return { income: [], expenses: [] };
+    const income = (categories || [])
+      .filter(c => c.type === 'income')
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        estimated: c.estimated_amount,
+        actual: c.transactions?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0
+      }));
+
+    const expenses = (categories || [])
+      .filter(c => c.type === 'expense')
+      .map(c => ({
+        id: c.id,
+        name: c.name,
+        estimated: c.estimated_amount,
+        actual: c.transactions?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0,
+        transactions: c.transactions || []
+      }));
+
+    return { income, expenses };
+  } catch (error: any) {
+    console.error("Critical Budget Action Error:", error);
+    return { income: [], expenses: [], error: error.message };
   }
-
-  const income = categories
-    .filter(c => c.type === 'income')
-    .map(c => ({
-      id: c.id,
-      name: c.name,
-      estimated: c.estimated_amount,
-      actual: c.transactions?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0
-    }));
-
-  const expenses = categories
-    .filter(c => c.type === 'expense')
-    .map(c => ({
-      id: c.id,
-      name: c.name,
-      estimated: c.estimated_amount,
-      actual: c.transactions?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0,
-      transactions: c.transactions || []
-    }));
-
-  return { income, expenses };
 }
 
 export async function addTransaction(data: {

@@ -51,9 +51,13 @@ export default function BudgetPage() {
     setLoading(true);
     try {
       const res = await getBudgetData(selectedMonth.key);
+      if (res.error) {
+        alert("Failed to load budget: " + res.error);
+      }
       setData(res);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert("Application error while loading budget.");
     } finally {
       setLoading(false);
     }
