@@ -2,24 +2,17 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 
 export async function getBudgetData(month: string) {
   try {
-    // 1. Get Auth
     const authData = await auth();
     const userId = authData.userId;
     
     if (!userId) {
-      console.log("No User ID found in getBudgetData");
-      return { income: [], expenses: [], error: "No authenticated user found. Try logging out and in again." };
+      return { income: [], expenses: [], error: "No authenticated user found." };
     }
-    
-    // 2. Init DB
-    const supabase = getSupabaseAdmin();
-    if (!supabase) throw new Error("Database failed to initialize");
 
-    // 3. Query
     const { data: categories, error: catError } = await supabase
       .from('budget_categories')
       .select('*, transactions(*)')
@@ -27,8 +20,7 @@ export async function getBudgetData(month: string) {
       .eq('month', month);
 
     if (catError) {
-      console.error("Fetch budget database error:", catError);
-      return { income: [], expenses: [], error: "Database error: " + catError.message };
+      return { income: [], expenses: [], error: catError.message };
     }
 
     const income = (categories || [])
@@ -52,13 +44,10 @@ export async function getBudgetData(month: string) {
 
     return { income, expenses, debugUserId: userId };
   } catch (error: any) {
-    console.error("CRITICAL ACTION FAILURE:", error);
-    // In production (Next 15/16), throwing error causes 500. 
-    // We return it as an object instead.
     return { 
       income: [], 
       expenses: [], 
-      error: "INTERNAL_SERVER_ERROR: " + (error.message || "Unknown cause") 
+      error: error.message || "Unknown server error" 
     };
   }
 }
@@ -73,7 +62,6 @@ export async function addTransaction(data: {
     const { userId } = await auth();
     if (!userId) throw new Error("Unauthorized");
 
-    const supabase = getSupabaseAdmin();
     const { error } = await supabase
       .from('transactions')
       .insert({

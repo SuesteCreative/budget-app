@@ -2,33 +2,26 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import data from "../../import_data.json";
 
 export async function importExcelData() {
   try {
     const { userId } = await auth();
-    if (!userId) return { success: false, error: "CLERK_AUTH_FAILED: No user ID found." };
+    if (!userId) return { success: false, error: "CLERK_AUTH_FAILED" };
 
-    const supabase = getSupabaseAdmin();
-
-    // 1. Ensure profile exists
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({ id: userId }, { onConflict: 'id' });
       
     if (profileError) {
-      return { success: false, error: "SUPABASE_PROFILE_ERROR: " + profileError.message };
+      return { success: false, error: profileError.message };
     }
 
-    // 3. Clear old data to prevent duplication during a re-sync
     const monthsToSync = Object.keys(data);
     await supabase.from('budget_categories').delete().eq('user_id', userId).in('month', monthsToSync);
     
-    // Process categories and transactions
     for (const [month, content] of Object.entries(data) as any[]) {
-      
-      // Process Income
       for (const item of content.income) {
         const { data: catData, error: catError } = await supabase
           .from('budget_categories')
@@ -42,7 +35,7 @@ export async function importExcelData() {
           .select()
           .single();
 
-        if (catError) continue;
+        if (catErr) continue;
 
         if (item.actual > 0) {
           await supabase.from('transactions').insert({
@@ -55,7 +48,6 @@ export async function importExcelData() {
         }
       }
 
-      // Process Expenses
       for (const item of content.expenses) {
         const { data: catData, error: catError } = await supabase
           .from('budget_categories')
@@ -85,6 +77,6 @@ export async function importExcelData() {
 
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: "CRITICAL_ACTION_ERROR: " + (error.message || "Unknown") };
+    return { success: false, error: error.message };
   }
 }
