@@ -152,37 +152,37 @@ export default function BudgetPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card-normal p-6 flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Income</span>
-              <span className="text-2xl font-semibold tracking-tight">€{totalActualIncome.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tracking-tight">€{(totalActualIncome || 0).toFixed(2)}</span>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground">Estimate: €{totalEstimateIncome.toFixed(2)}</span>
+                <span className="text-[10px] text-muted-foreground">Estimate: €{(totalEstimateIncome || 0).toFixed(2)}</span>
                 <span className={cn(
                   "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
-                  totalActualIncome >= totalEstimateIncome ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
+                  (totalActualIncome || 0) >= (totalEstimateIncome || 0) ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
                 )}>
-                  {totalActualIncome >= totalEstimateIncome ? <TrendingUp className="w-3 h-3 inline mr-1" /> : <TrendingDown className="w-3 h-3 inline mr-1" />}
-                  {totalEstimateIncome > 0 ? Math.abs(((totalActualIncome/totalEstimateIncome - 1) * 100)).toFixed(1) : "0"}%
+                  {(totalActualIncome || 0) >= (totalEstimateIncome || 0) ? <TrendingUp className="w-3 h-3 inline mr-1" /> : <TrendingDown className="w-3 h-3 inline mr-1" />}
+                  {totalEstimateIncome > 0 ? Math.abs((((totalActualIncome || 0)/(totalEstimateIncome || 1) - 1) * 100)).toFixed(1) : "0"}%
                 </span>
               </div>
             </div>
             <div className="card-normal p-6 flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Expenses</span>
-              <span className="text-2xl font-semibold tracking-tight">€{totalActualExpense.toFixed(2)}</span>
+              <span className="text-2xl font-semibold tracking-tight">€{(totalActualExpense || 0).toFixed(2)}</span>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground">Estimate: €{totalEstimateExpense.toFixed(2)}</span>
+                <span className="text-[10px] text-muted-foreground">Estimate: €{(totalEstimateExpense || 0).toFixed(2)}</span>
                 <span className={cn(
                   "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
-                  totalActualExpense <= totalEstimateExpense ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
+                  (totalActualExpense || 0) <= (totalEstimateExpense || 0) ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
                 )}>
-                  {totalActualExpense <= totalEstimateExpense ? <TrendingDown className="w-3 h-3 inline mr-1" /> : <TrendingUp className="w-3 h-3 inline mr-1" />}
-                  {totalEstimateExpense > 0 ? Math.abs(((totalActualExpense/totalEstimateExpense - 1) * 100)).toFixed(1) : "0"}%
+                  {(totalActualExpense || 0) <= (totalEstimateExpense || 0) ? <TrendingDown className="w-3 h-3 inline mr-1" /> : <TrendingUp className="w-3 h-3 inline mr-1" />}
+                  {totalEstimateExpense > 0 ? Math.abs((((totalActualExpense || 0)/(totalEstimateExpense || 1) - 1) * 100)).toFixed(1) : "0"}%
                 </span>
               </div>
             </div>
             <div className="card-normal p-6 flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Net Cash Flow</span>
-              <span className="text-2xl font-semibold tracking-tight text-accent">€{(totalActualIncome - totalActualExpense).toFixed(2)}</span>
+              <span className="text-2xl font-semibold tracking-tight text-accent">€{((totalActualIncome || 0) - (totalActualExpense || 0)).toFixed(2)}</span>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground">Estimated Balance: €{(totalEstimateIncome - totalEstimateExpense).toFixed(2)}</span>
+                <span className="text-[10px] text-muted-foreground">Estimated Balance: €{((totalEstimateIncome || 0) - (totalEstimateExpense || 0)).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -221,17 +221,17 @@ export default function BudgetPage() {
                         {item.name}
                         {item.name === "NOS" && <span className="bg-accent/10 text-accent text-[8px] font-bold px-1.5 py-0.5 rounded-sharp uppercase">Carrier</span>}
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground">€{item.estimated.toFixed(2)}</td>
-                      <td className="px-6 py-4 font-semibold">€{item.actual.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-muted-foreground">€{(item.estimated || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 font-semibold">€{(item.actual || 0).toFixed(2)}</td>
                       <td className={cn(
                         "px-6 py-4 font-medium",
                         item.type === 'income' 
-                          ? (item.actual >= item.estimated ? "text-accent" : "text-red-500")
-                          : (item.actual <= item.estimated ? "text-accent" : "text-red-500")
+                          ? ((item.actual || 0) >= (item.estimated || 0) ? "text-accent" : "text-red-500")
+                          : ((item.actual || 0) <= (item.estimated || 0) ? "text-accent" : "text-red-500")
                       )}>
                         {item.type === 'income' 
-                          ? (item.actual - item.estimated).toFixed(2)
-                          : (item.estimated - item.actual).toFixed(2)
+                          ? ((item.actual || 0) - (item.estimated || 0)).toFixed(2)
+                          : ((item.estimated || 0) - (item.actual || 0)).toFixed(2)
                         }
                       </td>
                       <td className="px-6 py-4">

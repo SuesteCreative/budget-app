@@ -77,7 +77,7 @@ export default function Dashboard() {
              <Activity className="w-4 h-4 text-accent" />
            </div>
            <div className="flex flex-col">
-             <span className="text-4xl font-bold tracking-tighter">€{stats?.balance.toFixed(2)}</span>
+             <span className="text-4xl font-bold tracking-tighter">€{(stats?.balance || 0).toFixed(2)}</span>
              <div className="flex items-center gap-1.5 mt-2 text-accent text-xs font-semibold">
                <ArrowUpRight className="w-3.5 h-3.5" />
                <span>Calculated from active month</span>
@@ -90,7 +90,7 @@ export default function Dashboard() {
              <span className="text-xs font-bold uppercase tracking-widest">Spent this month</span>
            </div>
            <div className="flex flex-col">
-             <span className="text-4xl font-bold tracking-tighter">€{stats?.spentMonth.toFixed(2)}</span>
+             <span className="text-4xl font-bold tracking-tighter">€{(stats?.spentMonth || 0).toFixed(2)}</span>
              <div className="flex items-center gap-1.5 mt-2 text-red-500 text-xs font-semibold">
                <ArrowDownRight className="w-3.5 h-3.5" />
                <span>Total expenses logged</span>
@@ -103,7 +103,7 @@ export default function Dashboard() {
              <span className="text-xs font-bold uppercase tracking-widest">Total Income</span>
            </div>
            <div className="flex flex-col">
-             <span className="text-4xl font-bold tracking-tighter">€{stats?.incomeMonth.toFixed(2)}</span>
+             <span className="text-4xl font-bold tracking-tighter">€{(stats?.incomeMonth || 0).toFixed(2)}</span>
              <div className="flex items-center gap-1.5 mt-2 text-accent text-xs font-semibold">
                <span>March 2026</span>
              </div>
@@ -125,7 +125,7 @@ export default function Dashboard() {
                       "font-semibold text-sm",
                       exp.budget_categories?.type === 'income' ? "text-accent" : ""
                     )}>
-                      €{exp.amount.toFixed(2)}
+                      €{(exp.amount || 0).toFixed(2)}
                     </span>
                  </div>
                )) : (
