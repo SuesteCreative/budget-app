@@ -7,21 +7,7 @@ const ALLOWED_EMAIL = "pedrotovarporto@gmail.com";
 
 export const proxy = clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
-    const { userId, sessionClaims } = await auth();
-    
-    // Protect the route first (ensures user is logged in)
-    if (!userId) {
-      await auth.protect();
-      return;
-    }
-
-    // Check if the email matches the allowed one
-    const userEmail = sessionClaims?.email as string;
-    
-    if (userEmail !== ALLOWED_EMAIL) {
-      // Redirect to sign-in if not authorized
-      return Response.redirect(new URL('/sign-in', request.url));
-    }
+    await auth.protect();
   }
 });
 

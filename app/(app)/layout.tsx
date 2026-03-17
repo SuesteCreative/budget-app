@@ -1,11 +1,20 @@
-
 import { Sidebar } from "@/components/Sidebar";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-export default function AppLayout({
+const ALLOWED_EMAIL = "pedrotovarporto@gmail.com";
+
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await currentUser();
+  
+  if (!user || !user.emailAddresses.some(e => e.emailAddress === ALLOWED_EMAIL)) {
+    redirect("/sign-in");
+  }
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
