@@ -2,7 +2,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import data from "../../import_data.json";
 
 export async function importExcelData() {
