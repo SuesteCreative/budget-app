@@ -37,7 +37,8 @@ export default function BudgetPage() {
         alert("Excel data synchronised!");
         fetchBudget();
       } else {
-        alert("Sync failed: " + res.error);
+        alert("Sync failed! Possible authentication error. Error code: " + res.error);
+        console.error("Sync error detail:", res.error);
       }
     } catch (e) {
       console.error(e);

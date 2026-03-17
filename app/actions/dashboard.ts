@@ -2,48 +2,59 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function getDashboardStats() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
 
-  // Sum all transactions for the current month
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const supabase = getSupabaseAdmin();
 
-  const { data: transactions, error } = await supabase
-    .from('transactions')
-    .select('*, budget_categories!inner(*)')
-    .eq('user_id', userId)
-    .gte('date', `${currentMonth}-01`)
-    .lte('date', `${currentMonth}-31`);
+    // Fetch balance (sum of all income - sum of all expenses)
+    const { data: categories } = await supabase
+      .from('budget_categories')
+      .select('*, transactions(*)')
+      .eq('user_id', userId);
 
-  if (error) {
-    console.error("Fetch dashboard stats error:", error);
-    return { spentMonth: 0, balance: 0, recent: [] };
+    const balance = (categories || []).reduce((acc: number, cat: any) => {
+      const catTotal = (cat.transactions || []).reduce((sum: number, t: any) => sum + t.amount, 0);
+      return cat.type === 'income' ? acc + catTotal : acc - catTotal;
+    }, 0);
+
+    // Current month stats
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const monthCats = (categories || []).filter((c: any) => c.month === currentMonth);
+    
+    const spentMonth = monthCats
+      .filter((c: any) => c.type === 'expense')
+      .reduce((acc: number, cat: any) => acc + (cat.transactions || []).reduce((sum: number, t: any) => sum + t.amount, 0), 0);
+
+    const incomeMonth = monthCats
+      .filter((c: any) => c.type === 'income')
+      .reduce((acc: number, cat: any) => acc + (cat.transactions || []).reduce((sum: number, t: any) => sum + t.amount, 0), 0);
+
+    // Recent transactions
+    const { data: recent } = await supabase
+      .from('transactions')
+      .select('*, budget_categories(*)')
+      .eq('user_id', userId)
+      .order('date', { ascending: false })
+      .limit(5);
+
+    return {
+      balance,
+      spentMonth,
+      incomeMonth,
+      recent: recent || []
+    };
+  } catch (error) {
+    console.error("Dashboard Stats Error:", error);
+    return {
+      balance: 0,
+      spentMonth: 0,
+      incomeMonth: 0,
+      recent: []
+    };
   }
-
-  const spentMonth = transactions
-    .filter(t => t.budget_categories.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const incomeMonth = transactions
-    .filter(t => t.budget_categories.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  // Recent transactions
-  const { data: recent } = await supabase
-    .from('transactions')
-    .select('*, budget_categories(name, type)')
-    .eq('user_id', userId)
-    .order('date', { ascending: false })
-    .limit(5);
-
-  return {
-    spentMonth,
-    incomeMonth,
-    balance: incomeMonth - spentMonth,
-    recent: recent || []
-  };
 }

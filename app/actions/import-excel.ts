@@ -2,13 +2,15 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import data from "../../import_data.json";
 
 export async function importExcelData() {
   try {
     const { userId } = await auth();
     if (!userId) return { success: false, error: "CLERK_AUTH_FAILED: No user ID found." };
+
+    const supabase = getSupabaseAdmin();
 
     // 1. Ensure profile exists
     const { error: profileError } = await supabase
@@ -24,7 +26,7 @@ export async function importExcelData() {
     await supabase.from('budget_categories').delete().eq('user_id', userId).in('month', monthsToSync);
     
     // Process categories and transactions
-    for (const [month, content] of Object.entries(data)) {
+    for (const [month, content] of Object.entries(data) as any[]) {
       
       // Process Income
       for (const item of content.income) {
