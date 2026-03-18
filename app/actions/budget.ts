@@ -127,4 +127,55 @@ export async function updateActualAmount(categoryId: string, amount: number) {
   }
 }
 
+export async function createCategory(data: {
+  name: string;
+  type: string;
+  month: string;
+  estimated_amount: number;
+}) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const { error } = await supabase
+      .from('budget_categories')
+      .insert({
+        user_id: userId,
+        name: data.name,
+        type: data.type,
+        estimated_amount: data.estimated_amount,
+        month: data.month
+      });
+
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteCategory(id: string) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    // Foreign key deletes transactions automatically if cascading, 
+    // but if not, let's delete them first
+    await supabase.from('transactions').delete().eq('category_id', id);
+
+    const { error } = await supabase
+      .from('budget_categories')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+
 

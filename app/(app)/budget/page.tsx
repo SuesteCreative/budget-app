@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Plus, Search, Filter, Loader2, CheckCircle2, TrendingUp, TrendingDown, Database, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Loader2, CheckCircle2, TrendingUp, TrendingDown, Database, Trash2, CreditCard, PiggyBank, Receipt as ReceiptIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getBudgetData, addTransaction, updateCategoryAmount, updateActualAmount } from "@/app/actions/budget";
+import { getBudgetData, updateCategoryAmount, updateActualAmount, createCategory, deleteCategory } from "@/app/actions/budget";
 import { importExcelData } from "@/app/actions/import-excel";
 
 const months = [
@@ -23,43 +23,19 @@ const months = [
 ];
 
 export default function BudgetPage() {
-  const [selectedMonth, setSelectedMonth] = useState(months[0]);
+  const [selectedMonth, setSelectedMonth] = useState(months[1]); // FEB 2025
   const [data, setData] = useState<{income: any[], expenses: any[], debugUserId?: string}>({ income: [], expenses: [] });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("Expenses");
   const [isSyncing, setIsSyncing] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    try {
-      const res = await importExcelData();
-      if (res.success) {
-        alert("Excel data synchronised!");
-        fetchBudget();
-      } else {
-        alert("Sync failed! Possible authentication error. Error code: " + res.error);
-        console.error("Sync error detail:", res.error);
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Sync failed. Check console.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   const fetchBudget = async () => {
     setLoading(true);
     try {
       const res = await getBudgetData(selectedMonth.key);
-      if (res.error) {
-        alert("Failed to load budget: " + res.error);
-      }
       setData(res);
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      alert("Application error while loading budget.");
     } finally {
       setLoading(false);
     }
@@ -69,15 +45,52 @@ export default function BudgetPage() {
     fetchBudget();
   }, [selectedMonth]);
 
-  const updateLocalValue = (id: string, field: 'estimated' | 'actual', value: string, type: 'income' | 'expenses') => {
-    const numericValue = parseFloat(value) || 0;
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await importExcelData();
+      if (res.success) fetchBudget();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleCreate = async (group: 'EXP' | 'SUB' | 'SAV') => {
+    const label = group === 'SUB' ? 'Subscription' : group === 'SAV' ? 'Saving' : 'Expense';
+    const name = prompt(`Enter ${label} Name:`);
+    if (!name) return;
     
+    const prefix = group === 'EXP' ? '' : `[${group}] `;
+    try {
+        await createCategory({
+            name: `${prefix}${name}`,
+            type: 'expense',
+            month: selectedMonth.key,
+            estimated_amount: 0
+        });
+        fetchBudget();
+    } catch (e) {
+        alert("Error creating category");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+      if (!confirm("Are you sure?")) return;
+      try {
+          await deleteCategory(id);
+          fetchBudget();
+      } catch (e) {
+          alert("Error deleting");
+      }
+  };
+
+  const updateLocalValue = (id: string, field: 'estimated' | 'actual', value: string) => {
+    const numericValue = parseFloat(value) || 0;
     setData(prev => {
       const newData = { ...prev };
-      const list = type === 'income' ? newData.income : newData.expenses;
-      const index = list.findIndex(item => item.id === id);
+      const index = newData.expenses.findIndex(item => item.id === id);
       if (index !== -1) {
-        list[index] = { ...list[index], [field]: numericValue };
+        newData.expenses[index] = { ...newData.expenses[index], [field]: numericValue };
       }
       return newData;
     });
@@ -91,69 +104,136 @@ export default function BudgetPage() {
       } else {
         await updateActualAmount(id, value);
       }
-    } catch (e) {
-      console.error("Failed to save changes", e);
     } finally {
       setSavingId(null);
     }
   };
 
-  const totalEstimateIncome = data.income.reduce((acc, curr) => acc + curr.estimated, 0);
-  const totalActualIncome = data.income.reduce((acc, curr) => acc + curr.actual, 0);
-  
-  const totalEstimateExpense = data.expenses.reduce((acc, curr) => acc + curr.estimated, 0);
-  const totalActualExpense = data.expenses.reduce((acc, curr) => acc + curr.actual, 0);
+  const categorize = (items: any[]) => {
+      const res = { expenses: [] as any[], subs: [] as any[], savings: [] as any[] };
+      items.forEach(item => {
+          if (item.name.startsWith('[SUB]')) {
+              res.subs.push({ ...item, name: item.name.replace('[SUB] ', '') });
+          } else if (item.name.startsWith('[SAV]')) {
+              res.savings.push({ ...item, name: item.name.replace('[SAV] ', '') });
+          } else {
+              res.expenses.push(item);
+          }
+      });
+      return res;
+  };
 
-  const items = activeTab === "Income" ? data.income : data.expenses;
-  const tabTotalEstimate = items.reduce((acc: number, curr: any) => acc + (curr.estimated || 0), 0);
-  const tabTotalActual = items.reduce((acc: number, curr: any) => acc + (curr.actual || 0), 0);
+  const { expenses, subs, savings } = categorize(data.expenses);
+  const totalIncome = data.income.reduce((a, b) => a + (b.actual || 0), 0);
+  const totalExpAct = data.expenses.reduce((a, b) => a + (b.actual || 0), 0);
+  const totalExpEst = data.expenses.reduce((a, b) => a + (b.estimated || 0), 0);
+
+  const BudgetTable = ({ title, items, icon: Icon, group }: { title: string, items: any[], icon: any, group: 'EXP' | 'SUB' | 'SAV' }) => (
+    <div className="card-normal overflow-hidden mb-12 shadow-sm border border-border/50 bg-white">
+        <div className="bg-muted/5 p-5 flex items-center justify-between border-b border-border">
+            <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-sharp bg-background flex items-center justify-center border border-border shadow-sm">
+                    <Icon className="w-4 h-4 text-accent" />
+                </div>
+                <h3 className="font-bold text-sm tracking-tight">{title}</h3>
+            </div>
+            <button 
+                onClick={() => handleCreate(group)}
+                className="text-[10px] font-bold uppercase tracking-widest text-accent hover:opacity-70 transition-opacity flex items-center gap-1.5"
+            >
+                <Plus className="w-3 h-3" /> ADD ITEM
+            </button>
+        </div>
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[500px]">
+                <thead>
+                    <tr className="bg-muted/5 border-b border-border">
+                        <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px] text-muted-foreground w-1/3">Description</th>
+                        <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px] text-muted-foreground">Estimated</th>
+                        <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px] text-muted-foreground">Actual</th>
+                        <th className="px-6 py-4 font-bold uppercase tracking-widest text-[9px] text-muted-foreground text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                    {items.map(item => (
+                        <tr key={item.id} className="group hover:bg-muted/5 transition-colors">
+                            <td className="px-6 py-4 font-semibold">{item.name}</td>
+                            <td className="px-6 py-4">
+                                <div className="relative flex items-center max-w-[120px]">
+                                    <span className="absolute left-2 text-muted-foreground">€</span>
+                                    <input 
+                                        type="number"
+                                        value={item.estimated || ""}
+                                        onChange={(e) => updateLocalValue(item.id, 'estimated', e.target.value)}
+                                        onBlur={(e) => commitValue(item.id, 'estimated', parseFloat(e.target.value))}
+                                        className="bg-transparent pl-5 pr-2 py-2 w-full border-b border-transparent focus:border-accent focus:outline-none transition-all font-medium"
+                                    />
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="relative flex items-center max-w-[120px]">
+                                    <span className="absolute left-2 text-muted-foreground">€</span>
+                                    <input 
+                                        type="number"
+                                        value={item.actual || ""}
+                                        onChange={(e) => updateLocalValue(item.id, 'actual', e.target.value)}
+                                        onBlur={(e) => commitValue(item.id, 'actual', parseFloat(e.target.value))}
+                                        className="bg-transparent pl-5 pr-2 py-2 w-full border-b border-transparent focus:border-accent focus:outline-none transition-all font-bold"
+                                    />
+                                </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                                <div className="flex items-center justify-end gap-3">
+                                    {savingId?.startsWith(item.id) && <Loader2 className="w-3 h-3 animate-spin text-accent" />}
+                                    <button 
+                                        onClick={() => handleDelete(item.id)}
+                                        className="p-1.5 text-red-500 rounded-sharp hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                    {items.length === 0 && (
+                        <tr>
+                            <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground italic opacity-50">No items in this category.</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+        </div>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-8">
-
-      <header className="flex items-center justify-between">
+    <div className="flex flex-col gap-8 max-w-6xl mx-auto w-full pb-20 px-4 md:px-0">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Interactive Budget</h1>
-          <p className="text-muted-foreground text-sm">Managing your cash flow for {selectedMonth.name}. Autocalculated real-time.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">Monthly Budget</h1>
+          <p className="text-muted-foreground text-sm mt-1">Strategic financial planning for {selectedMonth.name}.</p>
         </div>
         
-        <div className="flex items-center gap-2">
-           <div className="flex border border-border bg-muted/50 rounded-sharp p-1">
-             {["Income", "Expenses", "Overview"].map((tab) => (
-                <button 
-                   key={tab}
-                   onClick={() => setActiveTab(tab)}
-                   className={cn(
-                     "px-4 py-1.5 text-xs font-medium rounded-sharp transition-all",
-                     tab === activeTab ? "bg-background shadow-sm border border-border" : "text-muted-foreground hover:text-foreground"
-                   )}
-                >
-                  {tab}
-                </button>
-             ))}
-           </div>
+        <div className="flex items-center gap-3">
            <button 
              onClick={handleSync}
              disabled={isSyncing}
-             className="bg-muted text-foreground border border-border px-4 py-2 text-xs font-semibold rounded-sharp inline-flex items-center gap-2 hover:bg-muted/80 transition-colors disabled:opacity-50"
+             className="bg-muted text-foreground border border-border px-5 py-2.5 text-xs font-bold rounded-sharp inline-flex items-center gap-2 hover:bg-muted/80 transition-colors disabled:opacity-50 shadow-sm"
            >
              <Database className="w-4 h-4" />
-             {isSyncing ? "Syncing..." : "Sync from Excel"}
-           </button>
-           <button className="bg-accent text-white px-4 py-2 text-xs font-semibold rounded-sharp border border-accent hover:opacity-90 transition-opacity flex items-center gap-2">
-             <Plus className="w-4 h-4" />
-             Add Category
+             {isSyncing ? "SYNCING..." : "SYNC FROM EXCEL"}
            </button>
         </div>
       </header>
 
-      <div className="flex gap-2 border-b border-border pb-px overflow-x-auto no-scrollbar">
+      {/* Month Navigation */}
+      <div className="flex gap-2 border-b border-border pb-px overflow-x-auto no-scrollbar scroll-smooth">
         {months.map((m) => (
           <button
             key={m.key}
             onClick={() => setSelectedMonth(m)}
             className={cn(
-              "px-4 py-3 text-xs font-medium border-b-2 transition-all whitespace-nowrap",
+              "px-5 py-4 text-xs font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap",
               selectedMonth.key === m.key 
                 ? "border-accent text-foreground" 
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -165,173 +245,75 @@ export default function BudgetPage() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-4 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-accent" />
-          <p className="text-xs font-medium uppercase tracking-widest">Loading real-time data...</p>
+        <div className="flex flex-col items-center justify-center py-32 gap-6 text-muted-foreground">
+          <Loader2 className="w-10 h-10 animate-spin text-accent" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em]">Synchronizing data</p>
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="card-normal p-6 flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Income</span>
-              <span className="text-2xl font-semibold tracking-tight">€{(totalActualIncome || 0).toFixed(2)}</span>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground">Estimate: €{(totalEstimateIncome || 0).toFixed(2)}</span>
-                <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
-                  (totalActualIncome || 0) >= (totalEstimateIncome || 0) ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
-                )}>
-                  {(totalActualIncome || 0) >= (totalEstimateIncome || 0) ? <TrendingUp className="w-3 h-3 inline mr-1" /> : <TrendingDown className="w-3 h-3 inline mr-1" />}
-                  {totalEstimateIncome > 0 ? Math.abs((((totalActualIncome || 0)/(totalEstimateIncome || 1) - 1) * 100)).toFixed(1) : "0"}%
-                </span>
-              </div>
-            </div>
-            <div className="card-normal p-6 flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Total Expenses</span>
-              <span className="text-2xl font-semibold tracking-tight">€{(totalActualExpense || 0).toFixed(2)}</span>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground">Estimate: €{(totalEstimateExpense || 0).toFixed(2)}</span>
-                <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded-sharp",
-                  (totalActualExpense || 0) <= (totalEstimateExpense || 0) ? "bg-accent/10 text-accent" : "bg-red-500/10 text-red-500"
-                )}>
-                  {(totalActualExpense || 0) <= (totalEstimateExpense || 0) ? <TrendingDown className="w-3 h-3 inline mr-1" /> : <TrendingUp className="w-3 h-3 inline mr-1" />}
-                  {totalEstimateExpense > 0 ? Math.abs((((totalActualExpense || 0)/(totalEstimateExpense || 1) - 1) * 100)).toFixed(1) : "0"}%
-                </span>
-              </div>
-            </div>
-            <div className="card-normal p-6 flex flex-col gap-1">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Net Cash Flow</span>
-              <span className="text-2xl font-semibold tracking-tight text-accent">€{((totalActualIncome || 0) - (totalActualExpense || 0)).toFixed(2)}</span>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[10px] text-muted-foreground">Estimated Balance: €{((totalEstimateIncome || 0) - (totalEstimateExpense || 0)).toFixed(2)}</span>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+          <div className="lg:col-span-3">
+              <BudgetTable title="Regular Expenses" items={expenses} icon={ReceiptIcon} group="EXP" />
+              <BudgetTable title="Monthly Subscriptions" items={subs} icon={CreditCard} group="SUB" />
+              <BudgetTable title="Long-term Savings" items={savings} icon={PiggyBank} group="SAV" />
           </div>
 
-          <div className="card-normal overflow-hidden overflow-x-auto">
-            <div className="border-b border-border p-4 flex items-center justify-between bg-muted/10">
-               <h3 className="text-sm font-semibold">{activeTab} Tracking</h3>
-               <div className="text-[10px] text-muted-foreground flex gap-4 uppercase font-bold tracking-widest">
-                 <span className="text-accent flex items-center gap-1.5"><Save className="w-3 h-3"/> Click value to edit</span>
-                 <span>Autosaves on leave</span>
-               </div>
-            </div>
-            <table className="w-full text-left text-xs min-w-[800px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/20">
-                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Category</th>
-                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Estimated</th>
-                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Actual</th>
-                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Diff</th>
-                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px]">Status</th>
-                  <th className="px-6 py-4 font-semibold text-muted-foreground uppercase tracking-widest text-[9px] text-right">Saving</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {items.map((item) => {
-                  const isPaid = item.actual > 0;
-                  const itemType = activeTab === "Income" ? 'income' : 'expenses';
+          <aside className="space-y-8">
+              <div className="card-normal p-8 flex flex-col gap-6 bg-accent border-accent text-white shadow-2xl relative overflow-hidden group">
+                  <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-700"></div>
                   
-                  return (
-                    <tr key={item.id} className="hover:bg-muted/10 transition-colors group">
-                      <td className="px-6 py-4 font-medium flex items-center gap-2">
-                        {item.name}
-                        {item.name === "NOS" && <span className="bg-accent/10 text-accent text-[8px] font-bold px-1.5 py-0.5 rounded-sharp uppercase">Carrier</span>}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="relative flex items-center group/cell">
-                          <span className="absolute left-2 text-muted-foreground">€</span>
-                          <input 
-                            type="number"
-                            step="0.01"
-                            value={item.estimated || ""}
-                            onChange={(e) => updateLocalValue(item.id, 'estimated', e.target.value, itemType)}
-                            onBlur={(e) => commitValue(item.id, 'estimated', parseFloat(e.target.value))}
-                            className="bg-transparent pl-5 pr-2 py-1.5 w-full rounded border-b border-transparent group-hover/cell:border-muted-foreground/30 focus:border-accent focus:outline-none transition-all font-medium"
-                          />
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="relative flex items-center group/cell">
-                          <span className="absolute left-2 text-muted-foreground">€</span>
-                          <input 
-                            type="number"
-                            step="0.01"
-                            value={item.actual || ""}
-                            onChange={(e) => updateLocalValue(item.id, 'actual', e.target.value, itemType)}
-                            onBlur={(e) => commitValue(item.id, 'actual', parseFloat(e.target.value))}
-                            className="bg-transparent pl-5 pr-2 py-1.5 w-full rounded border-b border-transparent group-hover/cell:border-muted-foreground/30 focus:border-accent focus:outline-none transition-all font-bold"
-                          />
-                        </div>
-                      </td>
-                      <td className={cn(
-                        "px-6 py-4 font-medium",
-                        itemType === 'income' 
-                          ? ((item.actual || 0) >= (item.estimated || 0) ? "text-accent" : "text-red-500")
-                          : ((item.actual || 0) <= (item.estimated || 0) ? "text-accent" : "text-red-500")
-                      )}>
-                        {itemType === 'income' 
-                          ? ((item.actual || 0) - (item.estimated || 0)).toFixed(2)
-                          : ((item.estimated || 0) - (item.actual || 0)).toFixed(2)
-                        }
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "px-2 py-1 rounded-sharp text-[10px] font-bold inline-flex items-center gap-1.5",
-                          isPaid ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground pointer-events-none opacity-50"
-                        )}>
-                          {isPaid ? <CheckCircle2 className="w-3 h-3" /> : null}
-                          {isPaid ? "Paid" : "Budgeted"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        {(savingId?.startsWith(item.id)) ? (
-                          <Loader2 className="w-3 h-3 animate-spin inline text-accent" />
-                        ) : (
-                          <div className="w-3 h-3 bg-muted-foreground/10 rounded-full inline-block group-hover:bg-accent/20 transition-all"></div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="bg-muted/30 font-bold border-t-2 border-border">
-                <tr>
-                  <td className="px-6 py-4 uppercase tracking-widest text-[9px]">Total {activeTab}</td>
-                  <td className="px-6 py-4">€{tabTotalEstimate.toFixed(2)}</td>
-                  <td className="px-6 py-4">€{tabTotalActual.toFixed(2)}</td>
-                  <td className={cn(
-                    "px-6 py-4",
-                    activeTab === 'Income' 
-                      ? (tabTotalActual >= tabTotalEstimate ? "text-accent" : "text-red-500")
-                      : (tabTotalActual <= tabTotalEstimate ? "text-accent" : "text-red-500")
-                  )}>
-                    {activeTab === 'Income'
-                      ? (tabTotalActual - tabTotalEstimate).toFixed(2)
-                      : (tabTotalEstimate - tabTotalActual).toFixed(2)
-                    }
-                  </td>
-                  <td colSpan={2} className="px-6 py-4 text-right text-muted-foreground font-normal italic">
-                    {activeTab === 'Expenses' && tabTotalActual > tabTotalEstimate ? "Over budget" : ""}
-                    {activeTab === 'Income' && tabTotalActual < tabTotalEstimate ? "Below expectation" : ""}
-                  </td>
-                </tr>
-              </tfoot>
-
-            </table>
-            {(activeTab === "Income" ? data.income : data.expenses).length === 0 && (
-              <div className="py-12 text-center text-muted-foreground text-xs">
-                No data for this month. Try syncing from Excel or adding a category.
+                  <div className="pb-6 border-b border-white/10 space-y-1 relative z-10">
+                      <p className="text-[10px] uppercase font-black opacity-60 tracking-wider">Remaining Balance</p>
+                      <h2 className="text-4xl font-extrabold tracking-tighter">€{(totalIncome - totalExpAct).toFixed(2)}</h2>
+                  </div>
+                  
+                  <div className="space-y-4 relative z-10">
+                      <div className="flex items-center justify-between text-xs font-medium">
+                          <span className="opacity-70">Monthly Income</span>
+                          <span className="font-bold">€{totalIncome.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-medium">
+                          <span className="opacity-70">Total Expenses</span>
+                          <span className="font-bold">€{totalExpAct.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-medium py-3 border-t border-white/10 mt-2">
+                          <span className="opacity-70 text-[10px] uppercase font-bold tracking-widest">Expected Balance</span>
+                          <span className="font-bold opacity-100 italic">€{(totalIncome - totalExpEst).toFixed(2)}</span>
+                      </div>
+                  </div>
               </div>
-            )}
-          </div>
-        </>
+
+              <div className="card-normal p-6 border-muted bg-muted/5 space-y-5">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Allocation Overview</h3>
+                  <div className="space-y-4">
+                      <div className="space-y-1.5">
+                          <div className="flex justify-between text-[10px] font-bold">
+                              <span>SUBSCRIPTIONS</span>
+                              <span>€{subs.reduce((a, b) => a + (b.actual || 0), 0).toFixed(2)}</span>
+                          </div>
+                          <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-accent transition-all duration-1000" 
+                                style={{ width: `${Math.min(100, (subs.reduce((a, b) => a + (b.actual || 0), 0) / (totalExpAct || 1)) * 100)}%` }}
+                              ></div>
+                          </div>
+                      </div>
+                      <div className="space-y-1.5">
+                          <div className="flex justify-between text-[10px] font-bold">
+                              <span>SAVINGS</span>
+                              <span>€{savings.reduce((a, b) => a + (b.actual || 0), 0).toFixed(2)}</span>
+                          </div>
+                          <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-accent transition-all duration-1000" 
+                                style={{ width: `${Math.min(100, (savings.reduce((a, b) => a + (b.actual || 0), 0) / (totalExpAct || 1)) * 100)}%` }}
+                              ></div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </aside>
+        </div>
       )}
-      
-      <div className="mt-auto pt-12 text-[8px] text-muted-foreground/50 font-mono text-center">
-        Account Link: {data?.debugUserId || "Not Linked"}
-      </div>
     </div>
   );
 }

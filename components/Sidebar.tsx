@@ -17,11 +17,13 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Income", href: "/income", icon: BarChart3 },
   { name: "Budget", href: "/budget", icon: Table },
   { name: "Food Expenses", href: "/food", icon: Utensils },
   { name: "Receipts", href: "/receipts", icon: Receipt },
   { name: "Stats", href: "/stats", icon: BarChart3 },
 ];
+
 
 export function Sidebar() {
   const pathname = usePathname();
