@@ -78,3 +78,53 @@ export async function addTransaction(data: {
     return { success: false, error: error.message };
   }
 }
+
+export async function updateCategoryAmount(id: string, amount: number) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    const { error } = await supabase
+      .from('budget_categories')
+      .update({ estimated_amount: amount })
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateActualAmount(categoryId: string, amount: number) {
+  try {
+    const { userId } = await auth();
+    if (!userId) throw new Error("Unauthorized");
+
+    // First delete existing transactions for this category (since we're overriding with a single value)
+    await supabase
+      .from('transactions')
+      .delete()
+      .eq('category_id', categoryId)
+      .eq('user_id', userId);
+
+    // Insert the single new amount
+    const { error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        category_id: categoryId,
+        amount: amount,
+        description: `Manual override`,
+        date: new Date().toISOString().split('T')[0]
+      });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+
